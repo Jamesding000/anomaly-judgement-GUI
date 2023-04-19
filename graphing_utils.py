@@ -4,7 +4,8 @@ import csv
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from utils import *
+
+from data_processing_utils import *
 
 df, static_data, platforms, features = load_dataset()
 
@@ -22,6 +23,7 @@ title_color = '#000000'
 color1 = "#707377"  #"#FF0505"
 color2 = "#0F3680"     #"#0F3680"
 color3 = "#f32247"
+abnormal_color = "#00FFFF"
 opacity = 0.5
 subplot_height = 260
 subplot_width = 240
@@ -70,6 +72,24 @@ def get_abnormal_data(platform,feature,line_width = line_width, mark_size = mark
         )
             
     return data_2
+
+def get_particular_mc_data(mc_x, mc_y):
+    data_3 = go.Scatter(
+        x=[mc_x],
+        y=[mc_y],
+        name='Particular abnormal data point',
+        line=dict(color = abnormal_color,
+                    width=line_width
+                ),
+        mode = 'markers',
+        # text = "{:.2f}".format(mc_y),
+        # textposition='top right',
+        # textfont={'color': abnormal_color, 'size' : mark_size},
+        marker={'size':mark_size+5, 'symbol' : "star"}
+        )
+            
+    return data_3
+
 
 def plot_combined(platform):
     grid = [[{} for _ in range(cols)] for i in range(rows)]
@@ -144,14 +164,155 @@ def plot_combined(platform):
         
     return fig
 
+def plot_feature_trend_with_mc_point(platform, feature, mc_x, mc_y):
+    fig = go.Figure()
+    data_1 = get_all_data(platform,feature,line_width=line_width)
+    data_2 = get_abnormal_data(platform,feature,mark_size=mark_size,line_width=line_width)
+    data_3 = get_particular_mc_data(mc_x, mc_y)
+    
+    fig.add_trace(data_1)
+
+    fig.add_trace(data_2)
+    
+    fig.add_trace(data_3)
+    
+    fig.update_yaxes(ticksuffix = feature_unit_dic[feature])
+    
+    # 更新大小和底色
+    fig.update_layout(
+    width=width,
+    height=height,
+    template=template,
+    font = dict(
+        size = font_size, # 整张图所有文字注释的字体
+        color = '#000000'
+    )
+    )
+
+    # 调节每个subplot的标题的字体大小 
+    #         fig.update_annotations(font_size=45) 
+
+    # 选择不显示legend
+    fig.update(layout_showlegend=False)
+
+    # 优化X轴的注释(显示日期的格式)
+    fig.update_xaxes(
+        ticks= "outside",
+                ticklabelmode= "period", 
+                tickcolor= "black", 
+                ticklen=15,
+    #                     title_font_size=18,
+                minor=dict(
+                    ticklen=7,
+    #                      tickwidth=5,
+                    #dtick=30*24*60*60*1000,  
+                    #tick0="2016-07-03", 
+                    griddash='dot', 
+                    gridcolor='white'),
+            tickangle=20      # 更改日期的倾斜度, 20度的效果不错
+            )
+
+
+    fig.update_layout(
+                        height=height-38,
+                        width=width,
+                        xaxis=dict(rangeslider=dict(visible = True), type = "date", showgrid = False),
+                        title={
+                            'text': feature,
+                            'x': 0.5,
+                            'y':0.92,
+                            'xanchor': 'center',
+                            'yanchor': 'top'}
+            )
+    
+    return fig
+
+def plot_combined_with_mc_point(platform, mc_feature, mc_x, mc_y):
+    grid = [[{} for _ in range(cols)] for i in range(rows)]
+    fig = make_subplots(rows=rows, cols=cols, specs=grid,
+        subplot_titles=(tuple(feature_list_with_abnormal_data)))
+
+    for i,feature in enumerate(feature_list_with_abnormal_data):
+
+        data_1 = get_all_data(platform,feature,line_width=subplot_line_width)
+        data_2 = get_abnormal_data(platform,feature,mark_size = subplot_mark_size,line_width = subplot_line_width)
+
+        row = i // cols + 1
+        col = i % cols + 1
+
+        fig.add_trace(data_1, row = row, col = col)
+
+        fig.add_trace(data_2, row = row, col = col)
+        
+        if feature == mc_feature:
+            data_3 = get_particular_mc_data(mc_x, mc_y)
+            fig.add_trace(data_3, row = row, col = col)
+        
+        # 更改y轴单位
+        fig.update_yaxes(ticksuffix = units[i],row=row,col=col)
+        
+
+    #  -------------- 更新图片外观 ------------------
+
+    # 更新大小和底色
+    fig.update_layout(
+    width=width,
+    height=height,
+    template=template,
+    font = dict(
+        size = subplot_font_size, # 整张图所有文字注释的字体
+        color = '#000000'
+    )
+    )
+
+    # 调节每个subplot的标题的字体大小 
+    #         fig.update_annotations(font_size=45) 
+
+    # 选择不显示legend
+    fig.update(layout_showlegend=False)
+
+    # 优化X轴的注释(显示日期的格式)
+    fig.update_xaxes(
+        ticks= "outside",
+                ticklabelmode= "period", 
+                tickcolor= "black", 
+                ticklen=15,
+                #title_font_size=18,
+                minor=dict(
+                    ticklen=7,
+                    #tickwidth=5,
+                    #dtick=30*24*60*60*1000,  
+                    #tick0="2016-07-03", 
+                    griddash='dot', 
+                    gridcolor='white'),
+            tickangle=20      # 更改日期的倾斜度, 20度的效果不错
+            )
+    
+
+    fig.update_layout(
+                        height=height,
+                        width=width,
+                        title={
+                            'text': platform,
+                            'x': 0.5,
+                            'y':0.95,
+                            'xanchor': 'center',
+                            'yanchor': 'top',
+                            'font': {'size':25}
+                            }
+            )
+        
+    return fig
+
 def plot_feature_trend(platform, feature):
     fig = go.Figure()
     data_1 = get_all_data(platform,feature,line_width=line_width)
     data_2 = get_abnormal_data(platform,feature,mark_size=mark_size,line_width=line_width)
-
+    
     fig.add_trace(data_1)
 
     fig.add_trace(data_2)
+    
     
     fig.update_yaxes(ticksuffix = feature_unit_dic[feature])
     
